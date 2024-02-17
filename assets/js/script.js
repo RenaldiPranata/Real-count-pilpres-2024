@@ -1,59 +1,11 @@
-$(document).ready(function () {
-  var w = window.innerWidth;
+let interval;
 
-  if (w > 767) {
-    $("#menu-jk").scrollToFixed();
-  } else {
-    // $('#menu-jk').scrollToFixed();
-  }
-});
-
-$(document).ready(function () {
-  $("#testimonial-slider").owlCarousel({
-    items: 2,
-    itemsDesktop: [1000, 2],
-    itemsDesktopSmall: [979, 2],
-    itemsTablet: [768, 1],
-    pagination: false,
-    navigation: true,
-    navigationText: ["", ""],
-    autoPlay: true,
-  });
-});
-
-$(document).ready(function () {
-  $(".filter-button").click(function () {
-    var value = $(this).attr("data-filter");
-
-    if (value == "all") {
-      //$('.filter').removeClass('hidden');
-      $(".filter").show("1000");
-    } else {
-      //            $('.filter[filter-item="'+value+'"]').removeClass('hidden');
-      //            $(".filter").not('.filter[filter-item="'+value+'"]').addClass('hidden');
-      $(".filter")
-        .not("." + value)
-        .hide("3000");
-      $(".filter")
-        .filter("." + value)
-        .show("3000");
-    }
-  });
-
-  if ($(".filter-button").removeClass("active")) {
-    $(this).removeClass("active");
-  }
-  $(this).addClass("active");
-});
-
-async function count() {
+async function kpu_api() {
   const response = await fetch(
     "https://sirekap-obj-data.kpu.go.id/pemilu/hhcw/ppwp.json"
   );
 
   const result = await response.json();
-
-  console.log(result);
 
   const paslon_01 = result.chart[100025];
   const paslon_02 = result.chart[100026];
@@ -107,6 +59,7 @@ async function count() {
   ).innerHTML = `Updated At : ${result.ts}`;
 
   const progress_title = document.getElementById("progress-title");
+
   const progress = document.getElementById("progress");
 
   progress_title.innerHTML = `Progress : ${result.progres.progres.toLocaleString()} of ${result.progres.total.toLocaleString()} TPS`;
@@ -120,7 +73,106 @@ async function count() {
   progress.setAttribute("aria-valuenow", persen_progress);
 }
 
-count();
+async function kawal_pemilu_api() {
+  const response = await fetch("https://kp24-fd486.et.r.appspot.com/h?id=");
 
-// update every 5 minutes
-setInterval(count, 5000);
+  const result = await response.json();
+
+  const last_updated = new Date(result.result.lastCachedTs);
+
+  const values = Object.values(result.result.aggregated);
+
+  const flat_values = values.flatMap((value) => value);
+
+  const paslon_01 = flat_values.reduce((acc, curr) => acc + curr.pas1, 0);
+
+  const paslon_02 = flat_values.reduce((acc, curr) => acc + curr.pas2, 0);
+
+  const paslon_03 = flat_values.reduce((acc, curr) => acc + curr.pas3, 0);
+
+  const total_tps = flat_values.reduce((acc, curr) => acc + curr.totalTps, 0);
+
+  const total_completed_tps = flat_values.reduce(
+    (acc, curr) => acc + curr.totalCompletedTps,
+    0
+  );
+
+  const persen_total_completed_tps = (total_completed_tps / total_tps) * 100;
+
+  const total_suara = paslon_01 + paslon_02 + paslon_03;
+
+  const persen_paslon_01 = (paslon_01 / total_suara) * 100;
+  const persen_paslon_02 = (paslon_02 / total_suara) * 100;
+  const persen_paslon_03 = (paslon_03 / total_suara) * 100;
+
+  document.getElementById(
+    "vote-01"
+  ).innerHTML = `Votes : ${paslon_01.toLocaleString()}`;
+
+  const progress_01 = document.getElementById("progress-01");
+
+  progress_01.style.width = `${persen_paslon_01}%`;
+
+  progress_01.innerHTML = `${persen_paslon_01.toFixed(2)}%`;
+
+  progress_01.setAttribute("aria-valuenow", persen_paslon_01);
+
+  document.getElementById(
+    "vote-02"
+  ).innerHTML = `Votes : ${paslon_02.toLocaleString()}`;
+
+  const progress_02 = document.getElementById("progress-02");
+
+  progress_02.style.width = `${persen_paslon_02}%`;
+
+  progress_02.innerHTML = `${persen_paslon_02.toFixed(2)}%`;
+
+  document.getElementById(
+    "vote-03"
+  ).innerHTML = `Votes : ${paslon_03.toLocaleString()}`;
+
+  const progress_03 = document.getElementById("progress-03");
+
+  progress_03.style.width = `${persen_paslon_03}%`;
+
+  progress_03.innerHTML = `${persen_paslon_03.toFixed(2)}%`;
+
+  progress_03.setAttribute("aria-valuenow", persen_paslon_03);
+
+  document.getElementById(
+    "updated-version"
+  ).innerHTML = `Updated At : ${last_updated.toLocaleString()}`;
+
+  const progress_title = document.getElementById("progress-title");
+
+  const progress = document.getElementById("progress");
+
+  progress_title.innerHTML = `Progress : ${total_completed_tps.toLocaleString()} of ${total_tps.toLocaleString()} TPS`;
+
+  progress.style.width = `${persen_total_completed_tps}%`;
+
+  progress.innerHTML = `${persen_total_completed_tps.toFixed(2)}%`;
+}
+
+const KPUButton = document.getElementById("kpu-button");
+
+const KawalPemiluButton = document.getElementById("kawal-pemilu-button");
+
+const dataVersion = document.getElementById("data-version");
+
+KPUButton.addEventListener("click", () => {
+  clearInterval(interval);
+  dataVersion.innerHTML = "KPU Version";
+  kpu_api();
+  interval = setInterval(kpu_api, 5000);
+});
+
+KawalPemiluButton.addEventListener("click", () => {
+  clearInterval(interval);
+  dataVersion.innerHTML = "Kawal Pemilu Version";
+  kawal_pemilu_api();
+  interval = setInterval(kawal_pemilu_api, 5000);
+});
+
+kpu_api();
+interval = setInterval(kpu_api, 5000);
